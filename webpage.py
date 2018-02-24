@@ -91,12 +91,20 @@ class LinkWebpage(Webpage):
         Webpage.__init__(self, url)
         self._internal_links = [self._domain]
         self._external_links = []
+        self._external_domains = []
 
     def findAllLinks(self):
         i = 0
         while(i < len(self._internal_links)):
             print(self._internal_links[i])
-            self.findLinks(self._internal_links[i])
+            endings = [".jpg",".jpeg",".png",".tiff",".gif",".pdf",".svc",".ics",".docx", ".doc", ".mp4", ".mov", ".webm", ".zip", ".ogg"]
+            skip = False
+            for ending in endings:
+                if self._internal_links[i].lower().endswith(ending):
+                    skip = True
+                    break
+            if not skip:
+                self.findLinks(self._internal_links[i])
             i += 1
 
 
@@ -105,6 +113,7 @@ class LinkWebpage(Webpage):
 
     def addExternal(self, link):
         self.add(self._external_links, link)
+        self.add(self._external_domains, self.findDomain(link))
 
     def add(self, list, link):
         link = link.replace("//", "/")
@@ -115,11 +124,33 @@ class LinkWebpage(Webpage):
         if link not in list:
             list.append(link)
 
-    def getInternals(self):
+    def getInternalLinks(self):
         return self._internal_links
 
-    def getExternals(self):
+    def getExternalLinks(self):
         return self._external_links
+
+    def getExternalDomains(self):
+        return self._external_domains
+
+    @staticmethod
+    def getFiletypes(linklist, *args):
+        endings = {"Other":[]}
+        for ending in args:
+            ending = ending.lower()
+            if not ending.startswith("."):
+                ending = "."+ending
+            endings[ending] = []
+        for link in linklist:
+            found = False
+            for ending in endings.keys():
+                if link.lower().endswith(ending):
+                    endings[ending].append(link)
+                    found = True
+                    break
+            if not found:
+                endings["Other"].append(link)
+        return endings
 
     def findLinks(self, url):
         html = requests.get("http://"+url, headers=self._headers).text
@@ -176,14 +207,7 @@ class Online_Image(object):
 
 #testing the class 
 if __name__ == "__main__":
-    web = ScrapePage("http://www.my3dworld.ch/")
-    print(web.getHeader())
-    web.find_images()
-    print(web.getExternals())
-    print(web.getInternals())
-    # Webpage.getDomain("https://www.google.ch/home/lol.jpg")
-    # travelblog = ImagesWebpage("https://www.justtravelous.com/")
-    # travelblog.find_images()
-    # travelblog.download_all_images("./travelblog/")
-    # print("*******")
-    # print("Total number of downloaded images: {}#".format(Images_Webpage.total_images_found()))
+    web = ScrapePage("https://www.icu.uzh.ch//")
+    web.findAllLinks()
+    print(web.getExternalLinks(), web.getExternalDomains())
+    print(web.getFiletypes(web.getInternalLinks(), "pdf", "jpg"))
