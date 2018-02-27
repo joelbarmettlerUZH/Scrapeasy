@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import validators
 import time
-from WebData import OnlineData
+from scrapeasy.WebData import OnlineData
 
 #Abstract page class with base functionality
 class abstractPage(object):
@@ -51,7 +51,7 @@ class abstractPage(object):
     def getHeader(self):
         return self._header
 
-    # Return lins according to type parameter
+    # Return links according to type parameter
     def getLinks(self, intern=True, extern=True, domain=False):
         linklist = []
         if intern:
@@ -196,14 +196,12 @@ class PageMedia(abstractPage):
 
     # Filter for some specific file types in all links and return the list of all these links
     def get(self, filetype):
-        if not filetype.startswith("."):
-            filetype = "."+filetype
         self._media[filetype] = self.filterFiles([filetype])
         return self._media[filetype]
 
     # Download a file to specified folder
     def download(self, filetype, folder):
-        if not self._media[filetype]:
+        if filetype not in self._media.keys():
             self.get(filetype)
         for link in self._media[filetype]:
             data = OnlineData(link)
@@ -249,10 +247,7 @@ class Page(PageMedia):
 
 # Testing
 if __name__=="__main__":
-    p = Page("https://www.w3schools.com/html/html5_video.asp", verify=True)
-    print("Images:", p.getImages())
-    print("Links:", p.getLinks(intern=True, extern=True))
-    print("Videos:", p.getVideos())
-    print("HTML:", p.get("html"))
+    web = Page("http://mathcourses.ch/mat182.html")
+    print(web.download("pdf", "mathcourses/pdf-files"))
 
 

@@ -1,4 +1,4 @@
-from Page import Page
+from scrapeasy.Page import Page
 
 
 class Website(object):
@@ -9,6 +9,7 @@ class Website(object):
         #Define empty subpages list and empty media dict
         self._subpages = []
         self._media = {}
+        self._links = {"intern": [], "extern": [], "domain": []}
 
         self._verify = verify
 
@@ -33,13 +34,25 @@ class Website(object):
             links.append(page.getURL())
         return links
 
-    # Get list of all domains that are linked on the page
-    def getDomainLinks(self):
+    # Return links according to type parameter
+    def getLinks(self, intern=True, extern=True, domain=False):
         pages = self.getSubpages()
-        links = []
-        for page in pages:
-            links += page.getLinks(intern=False, extern=False, domain=True)
-        return list(set(links))
+        if not self._links["intern"] or not self._links["extern"] or not self._links["domain"]:
+            for page in pages:
+                self._links["intern"] += page.getLinks(intern=True, extern=False, domain=False)
+                self._links["extern"] += page.getLinks(intern=False, extern=True, domain=False)
+                self._links["domain"] += page.getLinks(intern=False, extern=False, domain=True)
+            self._links["intern"] = list(set(self._links["intern"]))
+            self._links["extern"] = list(set(self._links["extern"]))
+            self._links["domain"] = list(set(self._links["domain"]))
+        linklist = []
+        if intern:
+            linklist += self._links["intern"]
+        if extern:
+            linklist += self._links["extern"]
+        if domain:
+            linklist += self._links["domain"]
+        return linklist
 
     # Find images on each subsite and return list of total image links
     def getImages(self, reinit=False):
@@ -115,10 +128,5 @@ class Website(object):
 
 # Testing
 if __name__ == "__main__":
-    web = Website("http://www.fahrschule-liechti.com")
-    print("All pages: ",web.getSubpagesLinks())
-    print("All Images: ",web.getImages())
-    print("All Videos: ",web.getVideo())
-    print("Linked Domains: ", web.getDomainLinks())
-    print("Downloading all images")
-    web.download("img","Fahrschule-Liechti/Images/")
+    web = Website("https://www.icu.uzh.ch/events/id/207")
+    print(web.get("pdf"))
