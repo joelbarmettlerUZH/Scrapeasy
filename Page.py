@@ -1,32 +1,44 @@
 import requests
 from bs4 import BeautifulSoup
 import validators
-from OnlineData import OnlineData
+import time
+from WebData import OnlineData
 
-# Basic webpage class that can scrape the html content of an URL
+#Abstract page class with base functionality
 class abstractPage(object):
     def __init__(self, url, verify=True):
 
-        if not validators.url(url):
-            raise Exception("Not valid URL!")
-
+        # Define verify behaviour and extract domain from url
         self._verify = verify
         self._domain = self.findDomain(url)
-        self._url = url
-        self._header = requests.head(self._url, verify=self._verify).headers
 
+        # Normalize URL to not contain anything before the domain / subdomain
+        self._url = url[url.index(self._domain):]
+        if not validators.url("http://"+self._url):
+            raise Exception("Not valid URL: "+url+"!")
+
+        # Try getting the header via http request.head
+        try:
+            self._header = requests.head("http://www."+self._url, verify=self._verify).headers
+        except requests.exceptions.ConnectionError as ce:
+            self._header = "Unknown"
+
+        # Add scrapers headers to identify python scraper on websites
         self._headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:50.0) Gecko/20100101 Firefox/50.0'}
         self._html = None
         self.update()
 
+        # Categorize links into intern - extern and domain
         self._links = {"intern":[], "extern":[], "domain":[]}
         self.findLinks()
 
+        # Empty dict in which media will be inserted
         self._media = {}
 
     def __str__(self):
         return "Page object <"+self._url+"> under the domain "+self._domain
 
+    # Getters for private Page content
     def getURL(self):
         return self._url
 
@@ -39,14 +51,18 @@ class abstractPage(object):
     def getHeader(self):
         return self._header
 
-    def getLinks(self, intern=True, extern=True):
+    # Return lins according to type parameter
+    def getLinks(self, intern=True, extern=True, domain=False):
         linklist = []
         if intern:
             linklist += self._links["intern"]
         if extern:
             linklist += self._links["extern"]
+        if domain:
+            linklist += self._links["domain"]
         return linklist
 
+    # Extracts url out of a domain according to the first backslash occurence that marks the start of the path
     @staticmethod
     def findDomain(url):
         url = url.replace("https://", "")
@@ -56,25 +72,60 @@ class abstractPage(object):
             url = url[:url.index("/")]
         return url.lower()
 
-    def update(self):
-        self._html = requests.get(self._url, headers=self._headers, allow_redirects=True, verify=self._verify).text
+    # Folder is the part of a url without the file, so without the part after the last backslash
+    @staticmethod
+    def findFolder(url):
+        return url[:url.rindex("/")]
 
+    @staticmethod
+    def normalize(string):
+        return string.replace("https://", "").replace("http://","").replace("www.","")
+
+    # Try scraping the site. If it does not work out, wait some time and try again
+    def update(self, tries=5):
+        try:
+            self._html = requests.get("http://www."+self._url, headers=self._headers, allow_redirects=True, verify=self._verify).text
+        except requests.exceptions.ConnectionError as ce:
+            if tries > 0:
+                time.sleep(1)
+                self.update(tries=tries-1)
+            else:
+                print("Current Webpage could not be fetched, url seems to be invalid")
+                print(self)
+
+    # Exctract links from all urls that do not define some well-known filetypes that for sure do not contain any html text (unless .txt or .md could, in theory, contain such links)
     def findLinks(self):
+        # print("Finding links of "+self._url)
+        # Defined filetypes that are to ignore
+        endings = [".jpg", ".jpeg", ".png", ".tiff", ".gif", ".pdf", ".svc", ".ics", ".docx", ".doc", ".mp4", ".mov",
+                   ".webm", ".zip", ".ogg"]
+        for end in endings:
+            if self._url.lower().endswith(end):
+                print("Returning due to non-hypertext file")
+                return
+
+        # Parse request as lxml and extract a-tags
         soup = BeautifulSoup(self._html, "lxml")
         links = soup.findAll("a")
         for link in links:
+            # Filter out the href link
             link = str(link.get("href")).replace("../", "")
+            # Break when the link is None or consists of some javascript that could not be read out
+            if link == "None" or "JavaScript:" in link:
+                break
+            # Categorize link according to its form
             if validators.url(link) and "mailto:" not in link:
                 if self._domain in link.lower():
                     self.addInternal(self._domain + link[link.lower().index(self._domain)+len(self._domain):])
                 else:
-                    self.addExternal((link.replace("https://", "").replace("http://","").replace("www.","")))
+                    self.addExternal((Page.normalize(link)))
             else:
                 if validators.url("http://www."+self._domain+"/"+link) and "mailto:" not in link:
                     self.addInternal((self._domain + "/" + link))
 
+    # Add a link to the appropriate list with removing everything before the domain first
     def add(self, list, link):
-        link = link.replace("https://","").replace("http://","").replace("www.","").replace("//", "/")
+        link = Page.normalize(link)
         if link[-1] == "/":
             link = link[:-1]
         if "#" in link:
@@ -82,18 +133,16 @@ class abstractPage(object):
         if link not in list:
             list.append(link)
 
+    # Add link to internal links
     def addInternal(self, link):
         self.add(self._links["intern"], link)
 
+    # Add link to external links
     def addExternal(self, link):
         self.add(self._links["extern"], link)
         self.add(self._links["domain"], self.findDomain(link))
 
-    def download(self, filetype, folder):
-        for link in self._media[filetype]:
-            data = OnlineData(link)
-            data.download(folder)
-
+    # Filter all internal and external links to certain file endings and returns them
     def filterFiles(self, endlist):
         links = []
         for ending in endlist:
@@ -107,12 +156,13 @@ class abstractPage(object):
         return links
 
 
-# Subclass of Webpage that can also find images in the html content
+# Pagemedie extends the abstract page with media scraping support
 class PageMedia(abstractPage):
 
     def __init__(self, url,verify=True):
         abstractPage.__init__(self, url, verify)
 
+    # Find all images in a page by filtering its links and finding img src tags
     def updateImages(self):
         data = ["jpg","jpeg","png","tiff","svg","webm","gif", ".ico"]
         links = self.findSrc("img")
@@ -122,59 +172,87 @@ class PageMedia(abstractPage):
                 links.append(link)
         self._media["img"] = links
 
+    # Find all videos in a page by filtering its links and finding video src tags
     def updateVideos(self):
         data = ["avi", "mp4", "mpeg4", "asf", "mov", "qt", "flv", "swf", "wmv"]
-        links = self.findSrc("video")
+        links = self.findSrc("video", "source")
         new = self.filterFiles(data)
         for link in new:
             if link not in links:
                 links.append(link)
         self._media["video"] = links
 
+    # Return list of all image links
     def getImages(self):
         if not "img" in self._media.keys() or self._media["img"] == None:
             self.updateImages()
         return self._media["img"]
 
+    # Return list of all video links
     def getVideos(self):
         if not "video" in self._media.keys() or self._media["video"] == None:
             self.updateVideos()
         return self._media["video"]
 
-    def get(self, filetype, ending=None):
-        if ending == None:
-            return self._media[filetype]
-        if not filetype in self._media.keys() or self._media[filetype] == None:
-            self._media[filetype] = self.filterFiles(ending)
+    # Filter for some specific file types in all links and return the list of all these links
+    def get(self, filetype):
+        if not filetype.startswith("."):
+            filetype = "."+filetype
+        self._media[filetype] = self.filterFiles([filetype])
         return self._media[filetype]
 
-    def findSrc(self, tag):
+    # Download a file to specified folder
+    def download(self, filetype, folder):
+        if not self._media[filetype]:
+            self.get(filetype)
+        for link in self._media[filetype]:
+            data = OnlineData(link)
+            data.download(folder)
+
+    # Find some source that is nested in *tags, like tags("video"->"source"), then "src"!
+    def findSrc(self, *tags):
         links = []
-        soup = BeautifulSoup(self._html, "html.parser")
-        for link in soup.find_all(tag):
+        # Sometimes strange Not-implemented error occurs
+        try:
+            soup = BeautifulSoup(self._html, "html.parser")
+        except NotImplementedError as nie:
+            print("Not implemented error occurred!")
+            print(nie.args)
+            return []
+        # Filter as long as there are tags left, in the right order
+        filter = soup.find_all(tags[0])
+        tags = tags[1:]
+        for t in range(len(tags)):
+            filter_new = []
+            for f in range(len(filter)):
+                filter_new += filter[f].find_all(tags[t])
+            filter = filter_new.copy()
+        #Find source in tag and add link according to its structure
+        for link in filter:
             img_url = str(link.get("src")).lower()
             if not self._domain in img_url:
                 if img_url[0] == "/":
-                    self.add(links, self._url + img_url)
+                    self.add(links, self.findFolder(self._url) + img_url)
                 elif validators.url(img_url):
                     self.add(links, img_url)
                 else:
-                    self.add(links, self._url + "/" + img_url)
+                    self.add(links, self.findFolder(self._url) + "/" + img_url)
             else:
                 self.add(links, img_url)
         return links
 
 
-
+# Pagemedia is the version of Page that is always including all functionality, multi-inheritence will be used here later on
 class Page(PageMedia):
     def __init__(self, url, verify=True):
         PageMedia.__init__(self, url, verify=True)
 
+# Testing
 if __name__=="__main__":
     p = Page("https://www.w3schools.com/html/html5_video.asp", verify=True)
     print("Images:", p.getImages())
     print("Links:", p.getLinks(intern=True, extern=True))
     print("Videos:", p.getVideos())
-    print("HTML:", p.get("html", [".html"]))
+    print("HTML:", p.get("html"))
 
 
