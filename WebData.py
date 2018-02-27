@@ -22,11 +22,13 @@ class OnlineData(object):
     # download an image to thep rovided folder
     def download(self, folder):
         try:
-            img = requests.get(self._url, headers=self._headers, stream=True, allow_redirects=True)
+            img = requests.get("http://www."+self._url, headers=self._headers, stream=True, allow_redirects=True)
             if not os.path.exists(folder):
                 os.makedirs(folder)
+            if folder and not folder[:-1] == "/":
+                folder = folder + "/"
             with open(folder + self._name, "wb") as file:
-                print("Downloading {}".format(self._name))
+                # print("Downloading {}".format(self._name))
                 shutil.copyfileobj(img.raw, file)
         except:
             print("Invalid URL: {}".format(self._url))
