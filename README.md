@@ -71,7 +71,7 @@ The response will include links to all available images.
 Cool! Now let's do some more advanced stuff. We love the pictures that fahrschule-liechti.com has on its website, so let's download them all to our local disk. Sounds like a lot of work? Its actually deadly easy!
 
 ```Python
-links = web.download("img", "fahrschule/images")
+web.download("img", "fahrschule/images")
 ```
 
 First, we defined to download all image-media via the keyword *img*. Next, we define the output folder, where the images should be saved to. Thats it! Run the Code and see whats happening. Within seconds, you have received all images there are on fahrschule-liechti.com. 
