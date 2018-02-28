@@ -38,7 +38,7 @@ As will notice that you can use all the methods for both *Page* and *Website* wi
 First, let's create a new Website object. For this manner, just provide the url of the main page. I will use the URL of a website that I created years ago: [fahrschule-liechti.com](http://www.fahrschule-liechti.com). 
 
 ```Python
-web = Website("http://www.fahrschule-liechti.com/)
+web = Website("http://www.fahrschule-liechti.com/")
 ```
 
 #### Get Links of all subsites 
