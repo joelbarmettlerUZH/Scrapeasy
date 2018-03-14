@@ -2,14 +2,18 @@ from distutils.core import setup
 setup(
   name = 'scrapeasy',
   packages = ['scrapeasy'],
-  version = '0.1',
+  version = '0.12',
   license='MIT',
   description = 'Scraping in python made easy - receive the content you like in just one line of code!',
   author = 'Joel Barmettler',
   author_email = 'joel.barmettler@uzh.ch',
   url = 'https://github.com/joelbarmettlerUZH/Scrapeasy',
-  download_url = 'https://github.com/joelbarmettlerUZH/Scrapeasy/archive/pypi-0_1_2.tar.gz',
+  download_url = 'https://github.com/joelbarmettlerUZH/Scrapeasy/archive/pypi-0_1_3.tar.gz',
   keywords = ['scraping', 'easy', 'scraper', 'website', 'download', 'links', 'images', 'videos'],
+  install_requires=[
+          'validators',
+          'beautifulsoup4',
+      ],
   classifiers=[  # Optional
     # How mature is this project? Common values are
     #   3 - Alpha

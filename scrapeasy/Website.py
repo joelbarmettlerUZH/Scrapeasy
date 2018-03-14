@@ -3,8 +3,9 @@ from scrapeasy.Page import Page
 
 class Website(object):
     def __init__(self, url, verify=True):
+        url = url.replace("%2F", "/")
         self._domain = self.findDomain(url)
-        self._mainPage = Page(url, self)
+        self._mainPage = Page(url, verify=verify)
 
         #Define empty subpages list and empty media dict
         self._subpages = []
@@ -108,7 +109,7 @@ class Website(object):
     # Find internal links of all subpages, starting from the provided main page
     def findSubpages(self):
         i = 0
-        self._subpages = [Page(self._domain, verify=self._verify)]
+        self._subpages = [self._mainPage]
         while i < len(self._subpages):
             # print("Finding subpage of: "+self._subpages[i].getURL())
             # Ignore these internal rinks when reached
@@ -123,10 +124,13 @@ class Website(object):
                 new_links = self._subpages[i].getLinks(intern=True, extern=False)
                 for link in new_links:
                     if link not in self.getSubpagesLinks():
-                        self._subpages.append(Page(link, verify=self._verify))
+                        try:
+                            self._subpages.append(Page(link, verify=self._verify))
+                        except ValueError:
+                            print("Invalid URL: "+link)
             i += 1
 
 # Testing
 if __name__ == "__main__":
-    web = Website("https://www.icu.uzh.ch/events/id/207")
-    print(web.get("pdf"))
+    web = Website("http://www.ksreussbuehl.ch/")
+    print(web.getSubpages())

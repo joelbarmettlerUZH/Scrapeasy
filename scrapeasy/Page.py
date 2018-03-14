@@ -10,12 +10,16 @@ class abstractPage(object):
 
         # Define verify behaviour and extract domain from url
         self._verify = verify
+        url = url.replace("%2F", "/")
         self._domain = self.findDomain(url)
 
         # Normalize URL to not contain anything before the domain / subdomain
-        self._url = url[url.index(self._domain):]
+        try:
+            self._url = url[url.index(self._domain):]
+        except ValueError as ve:
+            self._url = url
         if not validators.url("http://"+self._url):
-            raise Exception("Not valid URL: "+url+"!")
+            raise ValueError("Not valid URL: "+url+"!")
 
         # Try getting the header via http request.head
         try:
@@ -36,7 +40,7 @@ class abstractPage(object):
         self._media = {}
 
     def __str__(self):
-        return "Page object <"+self._url+"> under the domain "+self._domain
+        return self._url
 
     # Getters for private Page content
     def getURL(self):
@@ -89,9 +93,6 @@ class abstractPage(object):
             if tries > 0:
                 time.sleep(1)
                 self.update(tries=tries-1)
-            else:
-                print("Current Webpage could not be fetched, url seems to be invalid")
-                print(self)
 
     # Exctract links from all urls that do not define some well-known filetypes that for sure do not contain any html text (unless .txt or .md could, in theory, contain such links)
     def findLinks(self):
@@ -101,7 +102,6 @@ class abstractPage(object):
                    ".webm", ".zip", ".ogg"]
         for end in endings:
             if self._url.lower().endswith(end):
-                print("Returning due to non-hypertext file")
                 return
 
         # Parse request as lxml and extract a-tags
@@ -248,6 +248,7 @@ class Page(PageMedia):
 # Testing
 if __name__=="__main__":
     web = Page("http://mathcourses.ch/mat182.html")
-    print(web.download("pdf", "mathcourses/pdf-files"))
+    print(web)
+    #web.download("pdf", "mathcourses/pdf-files")
 
 
