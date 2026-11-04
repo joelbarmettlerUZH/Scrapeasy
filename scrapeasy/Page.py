@@ -23,7 +23,7 @@ class abstractPage(object):
 
         # Try getting the header via http request.head
         try:
-            self._header = requests.head("http://www."+self._url, verify=self._verify).headers
+            self._header = requests.head("http://www."+self._url, verify=self._verify, timeout=30).headers
         except requests.exceptions.ConnectionError as ce:
             self._header = "Unknown"
 
@@ -88,7 +88,7 @@ class abstractPage(object):
     # Try scraping the site. If it does not work out, wait some time and try again
     def update(self, tries=5):
         try:
-            self._html = requests.get("http://www."+self._url, headers=self._headers, allow_redirects=True, verify=self._verify).text
+            self._html = requests.get("http://www."+self._url, headers=self._headers, allow_redirects=True, verify=self._verify, timeout=30).text
         except requests.exceptions.ConnectionError as ce:
             if tries > 0:
                 time.sleep(1)
