@@ -22,7 +22,7 @@ class OnlineData(object):
     # download an image to thep rovided folder
     def download(self, folder):
         try:
-            img = requests.get("http://www."+self._url, headers=self._headers, stream=True, allow_redirects=True)
+            img = requests.get("http://www."+self._url, headers=self._headers, stream=True, allow_redirects=True, timeout=30)
             if not os.path.exists(folder):
                 os.makedirs(folder)
             if folder and not folder[:-1] == "/":
